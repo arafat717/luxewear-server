@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 let cors = require("cors");
 const port = process.env.PORT || 3000;
 
@@ -11,7 +11,6 @@ app.use(express.json());
 
 const uri = process.env.MONGODB_URI;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -27,9 +26,10 @@ async function run() {
     const productCollection = client.db("luxewear").collection("products");
 
     app.get("/products", async (req, res) => {
-      const { sort } = req.query;
+      const { sort, fillter } = req.query;
       console.log("from bac", sort);
 
+      // sort data
       let sortCriteria = {};
 
       if (sort === "title_asc") {
@@ -48,10 +48,27 @@ async function run() {
         sortCriteria = { _id: 1 };
       }
 
+      // filter data
+      let filter = {};
+      if (fillter === "new-arrivals") {
+        filter = { isNewArrival: true };
+      } else if (fillter === "best-seller") {
+        filter = { best_seller: true };
+      } else if (fillter === "on-sale") {
+        filter = { on_sale: true };
+      }
+
       const result = await productCollection
-        .find()
+        .find(filter)
         .sort(sortCriteria)
         .toArray();
+      res.send(result);
+    });
+
+    app.get("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await productCollection.findOne(query);
       res.send(result);
     });
 
