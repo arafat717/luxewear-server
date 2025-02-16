@@ -23,14 +23,38 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    const productCollection = client.db("luxewear").collection("products");
+    const productCollection = client.db("luxewear").collection("eproducts");
 
     app.get("/products", async (req, res) => {
-      const { sort, fillter } = req.query;
-      console.log("from bac", sort);
+      const { sort, filterType, category, brand, size, minPrice, maxPrice } =
+        req.query;
+      console.log("from bac", category);
 
+      let filter = {};
       // sort data
       let sortCriteria = {};
+
+      // Filter by category
+      if (category) {
+        filter.category = category;
+      }
+
+      // Filter by brand
+      if (brand) {
+        filter.brand = brand;
+      }
+
+      // Filter by size
+      if (size) {
+        filter.sizes = size; // Checks if the size exists in the sizes array
+      }
+
+      // Filter by price range
+      if (minPrice || maxPrice) {
+        filter.discount_price = {};
+        if (minPrice) filter.discount_price.$gte = parseFloat(minPrice);
+        if (maxPrice) filter.discount_price.$lte = parseFloat(maxPrice);
+      }
 
       if (sort === "title_asc") {
         sortCriteria = { name: 1 };
@@ -49,13 +73,13 @@ async function run() {
       }
 
       // filter data
-      let filter = {};
-      if (fillter === "new-arrivals") {
-        filter = { isNewArrival: true };
-      } else if (fillter === "best-seller") {
-        filter = { best_seller: true };
-      } else if (fillter === "on-sale") {
-        filter = { on_sale: true };
+
+      if (filterType === "new-arrivals") {
+        filter.isNewArrival = true;
+      } else if (filterType === "best-seller") {
+        filter.best_seller = true;
+      } else if (filterType === "on-sale") {
+        filter.on_sale = true;
       }
 
       const result = await productCollection
