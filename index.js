@@ -39,9 +39,10 @@ async function run() {
         filter.category = category;
       }
 
-      // Filter by brand
+      // Modify filter to allow multiple brands
       if (brand) {
-        filter.brand = brand;
+        const brandArray = brand.split(","); // Convert query string into an array
+        filter.brand = { $in: brandArray }; // MongoDB filter to match any selected brand
       }
 
       // Filter by size
@@ -50,10 +51,8 @@ async function run() {
       }
 
       // Filter by price range
-      if (minPrice || maxPrice) {
-        filter.discount_price = {};
-        if (minPrice) filter.discount_price.$gte = parseFloat(minPrice);
-        if (maxPrice) filter.discount_price.$lte = parseFloat(maxPrice);
+      if (maxPrice) {
+        filter.discount_price = { $lte: parseFloat(maxPrice) }; // Filter products within maxPrice
       }
 
       if (sort === "title_asc") {
