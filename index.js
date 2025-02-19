@@ -24,6 +24,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const productCollection = client.db("luxewear").collection("eproducts");
+    const cartCollection = client.db("luxewear").collection("carts");
 
     app.get("/products", async (req, res) => {
       const { sort, filterType, category, brand, size, minPrice, maxPrice } =
@@ -39,20 +40,19 @@ async function run() {
         filter.category = category;
       }
 
-      // Modify filter to allow multiple brands
       if (brand) {
-        const brandArray = brand.split(","); // Convert query string into an array
-        filter.brand = { $in: brandArray }; // MongoDB filter to match any selected brand
+        const brandArray = brand.split(",");
+        filter.brand = { $in: brandArray };
       }
 
       // Filter by size
       if (size) {
-        filter.sizes = size; // Checks if the size exists in the sizes array
+        filter.sizes = size;
       }
 
       // Filter by price range
       if (maxPrice) {
-        filter.discount_price = { $lte: parseFloat(maxPrice) }; // Filter products within maxPrice
+        filter.discount_price = { $lte: parseFloat(maxPrice) };
       }
 
       if (sort === "title_asc") {
@@ -85,6 +85,24 @@ async function run() {
         .find(filter)
         .sort(sortCriteria)
         .toArray();
+      res.send(result);
+    });
+
+    app.post("/cart", async (req, res) => {
+      const data = req.body;
+      const result = await cartCollection.insertOne(data);
+      res.send(result);
+    });
+    app.post("/cart/add", async (req, res) => {
+      const data = req.body;
+      const result = await cartCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/carts/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
       res.send(result);
     });
 
