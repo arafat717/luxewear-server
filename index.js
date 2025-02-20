@@ -1,16 +1,37 @@
 const express = require("express");
 const app = express();
 require("dotenv").config();
+var jwt = require("jsonwebtoken");
+var cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 let cors = require("cors");
 const port = process.env.PORT || 3000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
+
+const veritytoken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "forbidden access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ message: "forbidden access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 const uri = process.env.MONGODB_URI;
-
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -26,10 +47,33 @@ async function run() {
     const productCollection = client.db("luxewear").collection("eproducts");
     const cartCollection = client.db("luxewear").collection("carts");
 
+    // jwt related api
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+
+      if (!user || !user.email) {
+        return res.status(400).json({ error: "Invalid user data" });
+      }
+
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res
+        .cookie("token", token, { httpOnly: true, secure: false })
+        .json({ success: true, token });
+    });
+
+    // clear token after logout
+    app.post("/logout", (req, res) => {
+      res
+        .clearCookie("token", { httpOnly: true, secure: false })
+        .send({ success: true });
+    });
+
     app.get("/products", async (req, res) => {
       const { sort, filterType, category, brand, size, minPrice, maxPrice } =
         req.query;
-      console.log("from bac", category);
 
       let filter = {};
       // sort data
@@ -88,20 +132,20 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/cart", async (req, res) => {
-      const data = req.body;
-      const result = await cartCollection.insertOne(data);
-      res.send(result);
-    });
     app.post("/cart/add", async (req, res) => {
       const data = req.body;
       const result = await cartCollection.insertOne(data);
       res.send(result);
     });
 
-    app.get("/carts/:email", async (req, res) => {
+    app.get("/carts/:email", veritytoken, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
+
+      if (req?.user?.email !== req.params?.email) {
+        return res.status(401).send({ message: "forbidden access" });
+      }
+
       const result = await cartCollection.find(query).toArray();
       res.send(result);
     });
