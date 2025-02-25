@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 var jwt = require("jsonwebtoken");
-var cookieParser = require("cookie-parser");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 let cors = require("cors");
 const port = process.env.PORT || 3000;
@@ -46,6 +46,8 @@ async function run() {
     await client.connect();
     const productCollection = client.db("luxewear").collection("eproducts");
     const cartCollection = client.db("luxewear").collection("carts");
+    const wishCollection = client.db("luxewear").collection("wishs");
+    const userCollection = client.db("luxewear").collection("users");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -59,9 +61,8 @@ async function run() {
         expiresIn: "1h",
       });
 
-      res
-        .cookie("token", token, { httpOnly: true, secure: false })
-        .json({ success: true, token });
+      res.cookie("token", token, { httpOnly: true, secure: false });
+      res.json({ success: true });
     });
 
     // clear token after logout
@@ -69,6 +70,13 @@ async function run() {
       res
         .clearCookie("token", { httpOnly: true, secure: false })
         .send({ success: true });
+    });
+
+    // users related api
+    app.post("/user/add", async (req, res) => {
+      const data = req.body;
+      const result = await userCollection.insertOne(data);
+      res.send(result);
     });
 
     app.get("/products", async (req, res) => {
@@ -138,15 +146,41 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/carts/:email", veritytoken, async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
+    app.post("/wish/add", async (req, res) => {
+      const data = req.body;
+      const result = await wishCollection.insertOne(data);
+      res.send(result);
+    });
 
-      if (req?.user?.email !== req.params?.email) {
+    app.delete("/cart/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.get("/carts", veritytoken, async (req, res) => {
+      const email = req.query.email;
+      const query = { email };
+      console.log("from my bc:", query);
+
+      if (req?.user?.email !== email) {
         return res.status(401).send({ message: "forbidden access" });
       }
 
       const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/wishs", veritytoken, async (req, res) => {
+      const email = req.query.email;
+      const query = { email };
+
+      if (req?.user?.email !== email) {
+        return res.status(401).send({ message: "forbidden access" });
+      }
+
+      const result = await wishCollection.find(query).toArray();
       res.send(result);
     });
 
