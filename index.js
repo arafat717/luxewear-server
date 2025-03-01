@@ -79,6 +79,40 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/user", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Update User API
+    app.put("/update-user/:email", async (req, res) => {
+      const { email } = req.params;
+      const { name, phone, country, image } = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          name: name,
+          phone: phone,
+          country: country,
+          image: image,
+        },
+      };
+      const result = await userCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
     app.get("/products", async (req, res) => {
       const { sort, filterType, category, brand, size, minPrice, maxPrice } =
         req.query;
@@ -162,7 +196,6 @@ async function run() {
     app.get("/carts", veritytoken, async (req, res) => {
       const email = req.query.email;
       const query = { email };
-      console.log("from my bc:", query);
 
       if (req?.user?.email !== email) {
         return res.status(401).send({ message: "forbidden access" });
