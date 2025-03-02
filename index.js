@@ -49,6 +49,17 @@ async function run() {
     const wishCollection = client.db("luxewear").collection("wishs");
     const userCollection = client.db("luxewear").collection("users");
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.user.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(401).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -82,19 +93,54 @@ async function run() {
     app.get("/user", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
+
       const result = await userCollection.findOne(query);
       res.send(result);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", veritytoken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
+    });
+
+    app.delete("/user/:id", veritytoken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.patch("/user/admin/:id", veritytoken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.get("/user/admin/:email", veritytoken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.user.email) {
+        return res.status(403).send({ message: "unauthorized access" });
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
     });
 
     // Update User API
     app.put("/update-user/:email", async (req, res) => {
       const { email } = req.params;
       const { name, phone, country, image } = req.body;
+
       const filter = { email: email };
       const options = { upsert: true };
       const updatedDoc = {
@@ -174,22 +220,36 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/cart/add", async (req, res) => {
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await productCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    app.post("/cart/add", veritytoken, async (req, res) => {
       const data = req.body;
       const result = await cartCollection.insertOne(data);
       res.send(result);
     });
 
-    app.post("/wish/add", async (req, res) => {
+    app.post("/wish/add", veritytoken, async (req, res) => {
       const data = req.body;
       const result = await wishCollection.insertOne(data);
       res.send(result);
     });
 
-    app.delete("/cart/:id", async (req, res) => {
+    app.delete("/cart/:id", veritytoken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.delete("/wish/:id", veritytoken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishCollection.deleteOne(query);
       res.send(result);
     });
 
