@@ -220,6 +220,12 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/product/add", veritytoken, async (req, res) => {
+      const data = req.body;
+      const result = await productCollection.insertOne(data);
+      res.send(result);
+    });
+
     app.delete("/products/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -281,6 +287,13 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await productCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/wish/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishCollection.findOne(query);
       res.send(result);
     });
 
